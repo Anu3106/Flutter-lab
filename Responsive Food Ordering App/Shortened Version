@@ -1,0 +1,247 @@
+import 'package:flutter/material.dart';
+
+void main() => runApp(const FoodApp());
+
+const orange = Color(0xFFFF7043);
+
+class Food {
+  final String name, image, category;
+  final double price;
+
+  const Food(this.name, this.image, this.category, this.price);
+}
+
+const foods = [
+  Food('Pizza', 'pizza.jpg', 'Pizza', 249),
+  Food('Burger', 'burger.jpg', 'Burger', 179),
+  Food('Pasta', 'pasta.jpg', 'Pasta', 219),
+  Food('Salad', 'salad.jpg', 'Healthy', 149),
+  Food('Cake', 'cake.jpg', 'Dessert', 159),
+  Food('Sushi', 'sushi.jpg', 'Healthy', 299),
+];
+
+class FoodApp extends StatelessWidget {
+  const FoodApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: orange),
+      ),
+      home: const MenuScreen(),
+    );
+  }
+}
+
+class MenuScreen extends StatefulWidget {
+  const MenuScreen({super.key});
+
+  @override
+  State<MenuScreen> createState() => _MenuScreenState();
+}
+
+class _MenuScreenState extends State<MenuScreen> {
+  String category = 'All';
+  String search = '';
+  final Map<Food, int> cart = {};
+
+  @override
+  Widget build(BuildContext context) {
+    double width = MediaQuery.of(context).size.width;
+    int columns = width < 600
+        ? 2
+        : width < 900
+            ? 3
+            : 4;
+
+    final items = foods.where((f) {
+      return (category == 'All' || f.category == category) &&
+          f.name.toLowerCase().contains(search.toLowerCase());
+    }).toList();
+
+    int count = cart.values.fold(0, (a, b) => a + b);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Foodie'),
+        backgroundColor: orange,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Badge(
+              label: Text('$count'),
+              child: const Icon(Icons.shopping_cart),
+            ),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CartScreen(cart: cart),
+                ),
+              );
+              setState(() {});
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Delicious Food!',
+              style: TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              onChanged: (v) => setState(() => search = v),
+              decoration: const InputDecoration(
+                hintText: 'Search food',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 55,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children:
+                  ['All', 'Pizza', 'Burger', 'Pasta', 'Healthy', 'Dessert']
+                      .map((c) => Padding(
+                            padding: const EdgeInsets.all(5),
+                            child: ChoiceChip(
+                              label: Text(c),
+                              selected: category == c,
+                              onSelected: (_) => setState(() => category = c),
+                            ),
+                          ))
+                      .toList(),
+            ),
+          ),
+          const Text(
+            'Popular Dishes',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: items.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                childAspectRatio: 0.72,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemBuilder: (_, i) => Card(
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Image.asset(
+                        'assets/images/${items[i].image}',
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.fastfood, size: 60),
+                      ),
+                    ),
+                    Text(
+                      items[i].name,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text('₹${items[i].price.toStringAsFixed(0)}'),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle, color: orange),
+                      onPressed: () => setState(() {
+                        cart[items[i]] = (cart[items[i]] ?? 0) + 1;
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CartScreen extends StatefulWidget {
+  final Map<Food, int> cart;
+
+  const CartScreen({super.key, required this.cart});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  @override
+  Widget build(BuildContext context) {
+    double total = 0;
+    int count = 0;
+
+    widget.cart.forEach((food, qty) {
+      total += food.price * qty;
+      count += qty;
+    });
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Cart'),
+        backgroundColor: orange,
+        foregroundColor: Colors.white,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              children: widget.cart.entries
+                  .map((e) => ListTile(
+                        title: Text(e.key.name),
+                        subtitle: Text('₹${e.key.price} × ${e.value}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.remove_circle),
+                          onPressed: () => setState(() {
+                            if (e.value > 1) {
+                              widget.cart[e.key] = e.value - 1;
+                            } else {
+                              widget.cart.remove(e.key);
+                            }
+                          }),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+          Text(
+            'Items: $count',
+            style: const TextStyle(fontSize: 20),
+          ),
+          Text(
+            'Total: ₹${total.toStringAsFixed(0)}',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: orange,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Continue Shopping'),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
