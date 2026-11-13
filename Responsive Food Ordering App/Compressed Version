@@ -1,0 +1,117 @@
+import 'package:flutter/material.dart';
+
+void main() => runApp(const MaterialApp(home: FoodApp()));
+
+const names = ['Pizza', 'Burger', 'Pasta', 'Salad'];
+const pics = ['pizza.jpg', 'burger.jpg', 'pasta.jpg', 'salad.jpg'];
+const prices = [249, 179, 219, 149];
+const cats = ['Pizza', 'Burger', 'Pasta', 'Healthy'];
+
+class FoodApp extends StatefulWidget {
+  const FoodApp({super.key});
+  @override
+  State<FoodApp> createState() => _FoodState();
+}
+
+class _FoodState extends State<FoodApp> {
+  String category = 'All', search = '';
+  final Map<int, int> cart = {};
+
+  @override
+  Widget build(BuildContext context) {
+    int cols = MediaQuery.of(context).size.width < 600 ? 2 : 4;
+    var items = List.generate(4, (i) => i)
+        .where((i) =>
+            (category == 'All' || cats[i] == category) &&
+            names[i].toLowerCase().contains(search.toLowerCase()))
+        .toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Food Ordering'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => Cart(cart: cart))),
+              child: Text('Cart ${cart.values.fold(0, (a, b) => a + b)}'))
+        ],
+      ),
+      body: Column(children: [
+        TextField(
+            onChanged: (v) => setState(() => search = v),
+            decoration: const InputDecoration(hintText: 'Search food')),
+        DropdownButton<String>(
+            value: category,
+            items: ['All', ...cats]
+                .toSet()
+                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                .toList(),
+            onChanged: (v) => setState(() => category = v!)),
+        Expanded(
+            child: GridView.builder(
+                itemCount: items.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols),
+                itemBuilder: (_, n) {
+                  int i = items[n];
+                  return Card(
+                      child: Column(children: [
+                    Expanded(
+                        child: Image.asset('assets/images/${pics[i]}',
+                            fit: BoxFit.cover, width: double.infinity)),
+                    Text(names[i]),
+                    Text('₹${prices[i]}'),
+                    IconButton(
+                        icon: const Icon(Icons.add_shopping_cart),
+                        onPressed: () => setState(() {
+                              cart[i] = (cart[i] ?? 0) + 1;
+                            }))
+                  ]));
+                }))
+      ]),
+    );
+  }
+}
+
+class Cart extends StatefulWidget {
+  final Map<int, int> cart;
+  const Cart({super.key, required this.cart});
+  @override
+  State<Cart> createState() => _CartState();
+}
+
+class _CartState extends State<Cart> {
+  @override
+  Widget build(BuildContext context) {
+    int total =
+        widget.cart.entries.fold(0, (sum, e) => sum + prices[e.key] * e.value);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Cart')),
+      body: Column(children: [
+        Expanded(
+            child: ListView(
+                children: widget.cart.entries.map((e) {
+          return ListTile(
+            title: Text(names[e.key]),
+            subtitle: Text('${e.value} × ₹${prices[e.key]}'),
+            trailing: IconButton(
+              icon: const Icon(Icons.remove),
+              onPressed: () => setState(() {
+                if (e.value > 1) {
+                  widget.cart[e.key] = e.value - 1;
+                } else {
+                  widget.cart.remove(e.key);
+                }
+              }),
+            ),
+          );
+        }).toList())),
+        Text('Total: ₹$total', style: const TextStyle(fontSize: 24)),
+        ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Continue Shopping'))
+      ]),
+    );
+  }
+}
